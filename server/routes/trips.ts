@@ -8,7 +8,8 @@ import {
   updateTrip,
   addActivity,
   removeActivity,
-  regenerateDay
+  regenerateDay,
+  inviteCompanion
 } from "../controllers/tripController.js";
 
 const router = express.Router();
@@ -25,5 +26,6 @@ router.route("/:id")
 router.patch("/:id/add-activity", protect, addActivity);
 router.patch("/:id/remove-activity", protect, removeActivity);
 router.patch("/:id/regenerate-day", protect, regenerateDay);
+router.patch("/:id/invite", protect, inviteCompanion);
 
 export default router;

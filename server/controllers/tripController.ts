@@ -2,12 +2,13 @@ import { AuthRequest } from "../middlewares/auth.js";
 import { Trip } from "../models/Trip.js";
 import { GeminiProvider } from "../services/GeminiProvider.js";
 import { Response } from "express";
+import { sendInviteEmail } from "../utils/mailer.js";
 
 const aiProvider = new GeminiProvider();
 
 export const createTrip = async (req: AuthRequest, res: Response) => {
   try {
-    const { destination, numberOfDays, budgetType, interests } = req.body;
+    const { destination, numberOfDays, budgetType, interests, startDate, companions } = req.body;
     
     if (!req.user?.id) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -27,6 +28,8 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
       numberOfDays,
       budgetType,
       interests,
+      startDate: startDate ? new Date(startDate) : new Date(),
+      companions: companions || [],
       itinerary,
     });
 
@@ -256,3 +259,44 @@ export const regenerateDay = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Failed to regenerate day" });
   }
 };
+
+export const inviteCompanion = async (req: AuthRequest, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Invalid email address" });
+    }
+
+    const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!trip) return res.status(404).json({ error: "Trip not found" });
+
+    // Check if companion email already exists
+    if (!trip.companions.includes(email)) {
+      trip.companions.push(email);
+      trip.markModified('companions');
+      await trip.save();
+    }
+
+    // Send email invitation link pointing to frontend URL
+    const origin = req.headers.origin || "http://localhost:5173";
+    const tripUrl = `${origin}/trip/${trip._id}`;
+    
+    // Send email asynchronously in the background so it doesn't block the API
+    sendInviteEmail(email, trip.destination, tripUrl)
+      .then((previewUrl) => {
+        if (previewUrl) {
+          console.log(`[INVITE SUCCESS] Email preview sent: ${previewUrl}`);
+        }
+      })
+      .catch((err) => {
+        console.error("[MAILER ERROR] Failed to send email:", err);
+      });
+
+    res.json(trip);
+  } catch (error: any) {
+    console.error("Invite companion error:", error);
+    res.status(500).json({ error: "Failed to send invitation" });
+  }
+};
+

@@ -6,6 +6,8 @@ export interface ITrip extends Document {
   numberOfDays: number;
   budgetType: "Low" | "Medium" | "High";
   interests: string[];
+  startDate: Date;
+  companions: string[];
   itinerary: {
     destination: string;
     days: {
@@ -44,6 +46,8 @@ const tripSchema = new Schema<ITrip>(
     numberOfDays: { type: Number, required: true },
     budgetType: { type: String, enum: ["Low", "Medium", "High"], required: true },
     interests: [{ type: String }],
+    startDate: { type: Date, default: Date.now },
+    companions: [{ type: String, default: [] }],
     itinerary: {
       destination: { type: String },
       days: [
