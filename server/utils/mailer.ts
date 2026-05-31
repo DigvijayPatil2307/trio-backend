@@ -3,7 +3,16 @@ import nodemailer from "nodemailer";
 export const sendInviteEmail = async (email: string, tripDestination: string, tripUrl: string): Promise<string | null> => {
   let transporter;
   
-  const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+  // Only use real SMTP if all required fields are set AND they are not placeholder values
+  const smtpUser = process.env.SMTP_USER || "";
+  const smtpPass = process.env.SMTP_PASS || "";
+  const isRealSmtp = process.env.SMTP_HOST 
+    && smtpUser 
+    && smtpPass
+    && !smtpUser.includes("your-gmail")
+    && !smtpPass.includes("your-gmail-app-password");
+
+  const hasSmtpConfig = !!isRealSmtp;
 
   if (hasSmtpConfig) {
     transporter = nodemailer.createTransport({
