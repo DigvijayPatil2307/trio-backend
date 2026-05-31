@@ -109,27 +109,35 @@ export const addActivity = async (req: AuthRequest, res: Response) => {
     const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
     if (!trip) return res.status(404).json({ error: "Trip not found" });
 
-    const dayObj = trip.itinerary.days.find(d => d.day === day);
-    if (dayObj) {
-      // 1. Add activity
+    let dayObj = trip.itinerary.days.find(d => d.day === day);
+    if (!dayObj) {
+      dayObj = {
+        day: day,
+        title: `Day ${day}: Explorations`,
+        activities: [activity]
+      };
+      trip.itinerary.days.push(dayObj);
+      trip.numberOfDays = Math.max(trip.numberOfDays, day);
+      trip.markModified('numberOfDays');
+    } else {
       dayObj.activities.push(activity);
-      
-      // 2. Adjust budget for adding one activity
-      if (trip.itinerary.budget) {
-        const budget = trip.itinerary.budget;
-        budget.activities = (budget.activities || 0) + 50;
-        
-        // Recalculate total budget
-        budget.total = (budget.flights || 0) + 
-                       (budget.accommodation || 0) + 
-                       (budget.food || 0) + 
-                       (budget.activities || 0) + 
-                       (budget.transportation || 0);
-      }
-
-      trip.markModified('itinerary');
-      await trip.save();
     }
+    
+    // 2. Adjust budget for adding one activity
+    if (trip.itinerary.budget) {
+      const budget = trip.itinerary.budget;
+      budget.activities = (budget.activities || 0) + 50;
+      
+      // Recalculate total budget
+      budget.total = (budget.flights || 0) + 
+                     (budget.accommodation || 0) + 
+                     (budget.food || 0) + 
+                     (budget.activities || 0) + 
+                     (budget.transportation || 0);
+    }
+
+    trip.markModified('itinerary');
+    await trip.save();
     res.json(trip);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to add activity" });
